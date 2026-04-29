@@ -1,6 +1,52 @@
-# two-phase-offloading-and-resource-allocation-heuristic-algorithm
-Pseudo-code for paper regarding TN-NTN vertical offloading
+# Two-Phase Offloading and Resource Allocation Heuristic
 
+This repository contains the pseudo-code for the heuristic admission control and vertical offloading algorithm proposed in our SBrT paper regarding TN-NTN coexistence.
+
+## Algorithm Overview
+
+**Require:** * Set of UEs: $\mathcal{U}$
+* Total RBs: $R_{TN}$, $R_{NTN}$
+* SNR vectors: $\mathbf{\gamma}_{TN}$, $\mathbf{\gamma}_{NTN}$
+* Offloading Method: $M$
+
+**Initialize:** * $\mathcal{U}_{TN} \gets \emptyset$, $\mathcal{U}_{NTN} \gets \emptyset$, $\mathcal{U}_{out} \gets \emptyset$
+* $\gamma_{th} \gets -5$ dB *(Physical outage threshold)*
+
+---
+
+### Phase 1.1: Physical Cut and Initial Association
+**For all** $u \in \mathcal{U}$ **do:**
+* **If** $\gamma_{TN}[u] < \gamma_{th}$ **and** $\gamma_{NTN}[u] < \gamma_{th}$ **then**
+  * $\mathcal{U}_{out} \gets \mathcal{U}_{out} \cup \{u\}$
+* **Else if** $\gamma_{TN}[u] \ge \gamma_{NTN}[u]$ **then**
+  * $\mathcal{U}_{TN} \gets \mathcal{U}_{TN} \cup \{u\}$
+* **Else**
+  * $\mathcal{U}_{NTN} \gets \mathcal{U}_{NTN} \cup \{u\}$
+* **End if**
+
+### Phase 1.2: Vertical Offloading (TN $\rightarrow$ NTN)
+* $\mathcal{G} \gets \{u \in \mathcal{U}_{TN} \mid \gamma_{NTN}[u] \ge \gamma_{th}\}$ *(Identify eligible Givers)*
+* $\mathcal{G}_{filtered} \gets \text{ApplyFilter}(\mathcal{G}, M)$ *(Filter by Outage or All based on M)*
+* $\mathcal{G}_{sorted} \gets \text{Sort}(\mathcal{G}_{filtered}, M)$ *(Sort by SNR or RB Cost based on M)*
+
+**For all** $u \in \mathcal{G}_{sorted}$ **do:**
+* **If** TN constraint requires offloading **and** NTN has available capacity **then**
+  * $\mathcal{U}_{TN} \gets \mathcal{U}_{TN} \setminus \{u\}$
+  * $\mathcal{U}_{NTN} \gets \mathcal{U}_{NTN} \cup \{u\}$
+* **End if**
+
+### Phase 2: Resource Allocation
+* $\mathbf{C}_{TN} \gets \text{RoundRobinScheduler}(\mathcal{U}_{TN}, R_{TN}, \mathbf{\gamma}_{TN})$
+* $\mathbf{C}_{NTN} \gets \text{RoundRobinScheduler}(\mathcal{U}_{NTN}, R_{NTN}, \mathbf{\gamma}_{NTN})$
+
+**Ensure:** Final Sets $\mathcal{U}_{TN}, \mathcal{U}_{NTN}, \mathcal{U}_{out}$ and Capacity Vectors $\mathbf{C}_{TN}, \mathbf{C}_{NTN}$.
+
+---
+
+## LaTeX Source Code
+For researchers wishing to include this pseudo-code in their own LaTeX documents, please use the snippet below. Ensure you have the `algorithm` and `algpseudocode` packages included in your preamble.
+
+```latex
 \begin{algorithm}[htbp]
 \caption{Two-Phase Offloading and Resource Allocation Heuristic}
 \label{alg:offloading}
