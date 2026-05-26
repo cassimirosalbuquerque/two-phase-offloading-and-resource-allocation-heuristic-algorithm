@@ -1,12 +1,12 @@
 # Two-Phase Offloading and Resource Allocation Heuristic
 
-This repository contains the pseudo-code for the heuristic admission control and vertical offloading algorithm proposed in our SBrT paper regarding TN-NTN coexistence.
+This repository contains the pseudo-code for the heuristic admission control and adaptive bidirectional offloading algorithm proposed in our SBrT paper regarding TN-NTN coexistence.
 
 ## Algorithm Overview
 
 **Require:** * Set of UEs: $\mathcal{U}$
 * Total RBs: $R_{TN}$, $R_{NTN}$
-* SNR vectors: $\mathbf{\gamma}_{TN}$, $\mathbf{\gamma}_{NTN}$
+* SNR vectors: $\gamma_{TN}$, $\gamma_{NTN}$
 * Offloading Method: $M$
 
 **Initialize:** * $\mathcal{U}_{TN} \gets \emptyset$, $\mathcal{U}_{NTN} \gets \emptyset$, $\mathcal{U}_{out} \gets \emptyset$
@@ -24,36 +24,43 @@ This repository contains the pseudo-code for the heuristic admission control and
   * $\mathcal{U}_{NTN} \gets \mathcal{U}_{NTN} \cup \{u\}$
 * **End if**
 
-### Phase 1.2: Vertical Offloading (TN $\rightarrow$ NTN)
-* $\mathcal{G} \gets \{u \in \mathcal{U}_{TN} \mid \gamma_{NTN}[u] \ge \gamma_{th}\}$ *(Identify eligible Givers)*
-* $\mathcal{G}_{filtered} \gets \text{ApplyFilter}(\mathcal{G}, M)$ *(Filter by Outage or All based on M)*
-* $\mathcal{G}_{sorted} \gets \text{Sort}(\mathcal{G}_{filtered}, M)$ *(Sort by SNR or RB Cost based on M)*
-
-**For all** $u \in \mathcal{G}_{sorted}$ **do:**
-* **If** TN constraint requires offloading **and** NTN has available capacity **then**
-  * $\mathcal{U}_{TN} \gets \mathcal{U}_{TN} \setminus \{u\}$
-  * $\mathcal{U}_{NTN} \gets \mathcal{U}_{NTN} \cup \{u\}$
+### Phase 1.2: Adaptive Bidirectional Offloading
+* $O_{TN}, O_{NTN} \gets \text{MeasureInitialOutage}(\mathcal{U}_{TN}, \mathcal{U}_{NTN})$
+* **If** $O_{TN} \ge O_{NTN}$ **then**
+  * $\text{Passes} \gets [(\text{TN} \rightarrow \text{NTN}), (\text{NTN} \rightarrow \text{TN})]$
+* **Else**
+  * $\text{Passes} \gets [(\text{NTN} \rightarrow \text{TN}), (\text{TN} \rightarrow \text{NTN})]$
 * **End if**
 
+**For each** $pass \in \text{Passes}$ **do:**
+* $src, dst \gets \text{Origin and Destination networks of } pass$
+* $\mathcal{G} \gets \{u \in \mathcal{U}_{src} \mid \gamma_{dst}[u] \ge \gamma_{th}\}$ *(Identify eligible Givers)*
+* $\mathcal{G}_{sorted} \gets \text{FilterAndSort}(\mathcal{G}, M)$ *(Apply Method M logic)*
+
+* **For all** $u \in \mathcal{G}_{sorted}$ **do:**
+  * $\text{Temporary move } u \text{ from } src \text{ to } dst$
+  * $\text{Evaluate global metrics (Outage and Median Capacity)}$
+  * **If** move improves global metrics (no outage increase & respects fairness) **then**
+    * $\text{Confirm move}$
+  * **Else**
+    * $\text{Revert move}$
+  * **End if**
+* **End for**
+
 ### Phase 2: Resource Allocation
-* $\mathbf{C}_{TN} \gets \text{RoundRobinScheduler}(\mathcal{U}_{TN}, R_{TN}, \mathbf{\gamma}_{TN})$
-* $\mathbf{C}_{NTN} \gets \text{RoundRobinScheduler}(\mathcal{U}_{NTN}, R_{NTN}, \mathbf{\gamma}_{NTN})$
+* $\mathbf{C}_{TN} \gets \text{RoundRobinScheduler}(\mathcal{U}_{TN}, R_{TN}, \gamma_{TN})$
+* $\mathbf{C}_{NTN} \gets \text{RoundRobinScheduler}(\mathcal{U}_{NTN}, R_{NTN}, \gamma_{NTN})$
 
 **Ensure:** Final Sets $\mathcal{U}_{TN}, \mathcal{U}_{NTN}, \mathcal{U}_{out}$ and Capacity Vectors $\mathbf{C}_{TN}, \mathbf{C}_{NTN}$.
 
----
-
-## LaTeX Source Code
-For researchers wishing to include this pseudo-code in their own LaTeX documents, please use the snippet below. Ensure you have the `algorithm` and `algpseudocode` packages included in your preamble.
-
 ```latex
 \begin{algorithm}[htbp]
-\caption{Two-Phase Offloading and Resource Allocation Heuristic}
+\caption{Two-Phase Adaptive Bidirectional Offloading and Resource Allocation}
 \label{alg:offloading}
 \begin{algorithmic}[1]
-\Require Set of UEs $\mathcal{U}$, Total RBs $R_{TN}, R_{NTN}$, SNR vectors $\mathbf{\gamma}_{TN}, \mathbf{\gamma}_{NTN}$, Method $M$
+\Require Set of UEs $\mathcal{U}$, Total RBs $R_{TN}, R_{NTN}$, SNR vectors $\gamma_{TN}, \gamma_{NTN}$, Method $M$
 \State \textbf{Initialize:} $\mathcal{U}_{TN} \gets \emptyset$, $\mathcal{U}_{NTN} \gets \emptyset$, $\mathcal{U}_{out} \gets \emptyset$
-\State $\gamma_{th} \gets -5$ dB \Comment{Physical outage threshold}
+\State $\gamma_{th} \gets -5$\,dB \Comment{Physical outage threshold}
 
 \Statex \textbf{\% Phase 1.1: Physical Cut and Initial Association}
 \ForAll{$u \in \mathcal{U}$}
@@ -66,21 +73,31 @@ For researchers wishing to include this pseudo-code in their own LaTeX documents
     \EndIf
 \EndFor
 
-\Statex \textbf{\% Phase 1.2: Vertical Offloading (TN $\rightarrow$ NTN)}
-\State $\mathcal{G} \gets \{u \in \mathcal{U}_{TN} \mid \gamma_{NTN}[u] \geq \gamma_{th}\}$ \Comment{Identify eligible Givers}
-\State $\mathcal{G}_{filtered} \gets \text{ApplyFilter}(\mathcal{G}, M)$ \Comment{e.g., All Givers or Outage only}
-\State $\mathcal{G}_{sorted} \gets \text{Sort}(\mathcal{G}_{filtered}, M)$ \Comment{Sort by SNR or RB Cost based on $M$}
+\Statex \textbf{\% Phase 1.2: Adaptive Bidirectional Offloading}
+\State $O_{TN}, O_{NTN} \gets \text{MeasureInitialOutage}(\mathcal{U}_{TN}, \mathcal{U}_{NTN})$
+\If{$O_{TN} \geq O_{NTN}$}
+    \State $\text{Passes} \gets [(\text{TN} \rightarrow \text{NTN}), (\text{NTN} \rightarrow \text{TN})]$
+\Else
+    \State $\text{Passes} \gets [(\text{NTN} \rightarrow \text{TN}), (\text{TN} \rightarrow \text{NTN})]$
+\EndIf
 
-\ForAll{$u \in \mathcal{G}_{sorted}$}
-    \If{TN constraint requires offloading \textbf{and} NTN has available capacity}
-        \State $\mathcal{U}_{TN} \gets \mathcal{U}_{TN} \setminus \{u\}$
-        \State $\mathcal{U}_{NTN} \gets \mathcal{U}_{NTN} \cup \{u\}$
-    \EndIf
+\ForAll{$pass \in \text{Passes}$}
+    \State $src, dst \gets \text{Origin and Destination networks of } pass$
+    \State $\mathcal{G} \gets \{u \in \mathcal{U}_{src} \mid \gamma_{dst}[u] \geq \gamma_{th}\}$ \Comment{Eligible Givers}
+    \State $\mathcal{G}_{sorted} \gets \text{FilterAndSort}(\mathcal{G}, M)$ \Comment{Apply Method M logic}
+    
+    \ForAll{$u \in \mathcal{G}_{sorted}$}
+        \State $\text{Temporarily move } u \text{ from } src \text{ to } dst$
+        \State $\text{Evaluate global Outage and Median Capacity}$
+        \If{move degrades global metrics}
+            \State $\text{Revert move}$ \Comment{Anti-thrashing property}
+        \EndIf
+    \EndFor
 \EndFor
 
 \Statex \textbf{\% Phase 2: Resource Allocation}
-\State $\mathbf{C}_{TN} \gets \text{RoundRobinScheduler}(\mathcal{U}_{TN}, R_{TN}, \mathbf{\gamma}_{TN})$
-\State $\mathbf{C}_{NTN} \gets \text{RoundRobinScheduler}(\mathcal{U}_{NTN}, R_{NTN}, \mathbf{\gamma}_{NTN})$
+\State $\mathbf{C}_{TN} \gets \text{RoundRobinScheduler}(\mathcal{U}_{TN}, R_{TN}, \gamma_{TN})$
+\State $\mathbf{C}_{NTN} \gets \text{RoundRobinScheduler}(\mathcal{U}_{NTN}, R_{NTN}, \gamma_{NTN})$
 
 \Ensure Final Sets $\mathcal{U}_{TN}, \mathcal{U}_{NTN}, \mathcal{U}_{out}$ and Capacity Vectors $\mathbf{C}_{TN}, \mathbf{C}_{NTN}$
 \end{algorithmic}
